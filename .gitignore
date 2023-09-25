@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Modules' leftovers
+.pytest_cache/
+.venv/
+dist/
+venv/
+
+# Build artifacts
+build/
+
+# Text editors, IDEs
+.vscode/
+
+# etc.
+*private*
