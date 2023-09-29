@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	contents := []any{2, 3, 4, nil}
+	contents := []any{2, 255, 257, 259, nil}
 
 	data, err := eabi.Marshal(contents)
 	if err != nil {
@@ -16,7 +16,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	file, err := os.Create("out.eabi")
+	file, err := os.Create("out.private.eabi")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when opening a file: %s\n", err)
 		os.Exit(1)
