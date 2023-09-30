@@ -22,7 +22,33 @@ type Marshaler interface {
 }
 
 func marshalArray(v reflect.Value, buf *[]byte) error {
-	*buf = append(*buf, 0x0C) // TODO: Specify array length
+	// TODO (arichr): This almost repeats the behaviour of marhsalInt64() and should be refactored.
+	arrayLen := v.Len()
+	var cursor byte = byte(arrayLen & 0b00000111)
+
+	i := 4
+
+	// 1100             ?         000
+	// Data type  Finalizing bit  Data
+	//
+	// Check if we can fit the array length to 3 bits
+	if arrayLen>>i&intChunkBitmask == 0 {
+		*buf = append(*buf, cursor|0b1100_1_000)
+	} else {
+		*buf = append(*buf, cursor|0b1100_0_000)
+	}
+
+	for i < 64 {
+		cursor = byte(arrayLen >> i & intChunkBitmask)
+		if cursor == 0 {
+			// Mark the last written byte as final
+			(*buf)[len(*buf)-1] |= 0b10000000
+			break
+		}
+
+		*buf = append(*buf, cursor)
+		i += 7
+	}
 
 	for i := 0; i < v.Len(); i++ {
 		if err := marshalToBuffer(v.Index(i), buf); err != nil {
@@ -37,11 +63,11 @@ func marshalMap(v reflect.Value, buf *[]byte) error {
 }
 
 func marshalElement(v reflect.Value, buf *[]byte) error {
-	fmt.Printf("Encoding %v...\n", v) // FIXME: Remove
+	// fmt.Printf("Encoding %v...\n", v) // FIXME (arichr): Remove
 
 	if v.IsNil() {
 		*buf = append(*buf, 0x08)
-		fmt.Printf("buf: %v\n", buf) // FIXME: Remove
+		// fmt.Printf("buf: %v\n", buf) // FIXME (arichr): Remove
 		return nil
 	}
 
@@ -77,25 +103,38 @@ func marshalElement(v reflect.Value, buf *[]byte) error {
 		return fmt.Errorf("unknown type: %v", kind)
 	}
 
-	fmt.Printf("buf: %v\n", buf) // FIXME: Remove
+	// fmt.Printf("buf: %v\n", buf) // FIXME (arichr): Remove
 	return nil
 }
 
-// Splits the binary representation of int64 into 7-bit chunks.
-// Each chunk is preceded by the "finalising bit".
-//
-// Think of it as a simple VarInt implementation.
-func marhsalInt64(v reflect.Value, buf *[]byte) {
-	var cursor byte
-	*buf = append(*buf, 0x04)
-	intval := v.Elem().Int()
+const intChunkBitmask = 0b01111111
 
-	for i := 0; i < 64; i += 7 {
-		cursor = byte(intval >> i & 0b01111111)
+func marhsalInt64(v reflect.Value, buf *[]byte) {
+	intval := v.Elem().Int()
+	var cursor byte = byte(intval & 0b00000111)
+
+	i := 3
+
+	// 0100             ?         000
+	// Data type  Finalizing bit  Data
+	//
+	// Check if we can fit the integer to 3 bits
+	if intval>>i&intChunkBitmask == 0 {
+		*buf = append(*buf, cursor|0b0100_1_000)
+		return
+	} else {
+		*buf = append(*buf, cursor|0b0100_0_000)
+	}
+
+	for i < 64 {
+		cursor = byte(intval >> i & intChunkBitmask)
 		if cursor == 0 {
+			// Mark the last written byte as final
 			(*buf)[len(*buf)-1] |= 0b10000000
 			break
 		}
+
 		*buf = append(*buf, cursor)
+		i += 7
 	}
 }
