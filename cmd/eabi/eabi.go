@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	contents := []any{2, 255, 257, 259, nil}
+	contents := []any{2, int16(255), int32(-257), uint16(259), nil}
 
 	data, err := eabi.Marshal(contents)
 	if err != nil {
